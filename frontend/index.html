@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分科測驗志願落點分析</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background: #f5f7fa;
+            color: #2c3e50;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #1a4d8c;
+            border-left: 6px solid #1a4d8c;
+            padding-left: 20px;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        /* 成績輸入區域 */
+        .score-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .score-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .score-item {
+            flex: 1 1 120px;
+            min-width: 120px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .score-item label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #4a5568;
+        }
+
+        .score-item input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            text-align: left;
+            transition: all 0.2s;
+            height: 45px;
+        }
+
+        .score-item input:focus {
+            outline: none;
+            border-color: #1a4d8c;
+            box-shadow: 0 0 0 3px rgba(26,77,140,0.2);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 45px;
+        }
+
+        .btn-primary {
+            background: #1a4d8c;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0d3a6f;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2c3e50;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+
+        .filter-stats {
+            background: #e6f3ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: #1a4d8c;
+            font-size: 0.95rem;
+        }
+
+        /* 控制列 */
+        .control-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .year-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .year-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 45px;
+        }
+
+        .year-btn.active {
+            background: #1a4d8c;
+            border-color: #1a4d8c;
+            color: white;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 30px;
+            font-size: 1rem;
+            height: 45px;
+        }
+
+        /* 科系列表 */
+        .dept-list {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .list-header {
+            display: grid;
+            grid-template-columns: 3fr 2fr 1fr 1fr 0.8fr;
+            background: #f8fafc;
+            padding: 15px 20px;
+            font-weight: 700;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .dept-row {
+            display: grid;
+            grid-template-columns: 3fr 2fr 1fr 1fr 0.8fr;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dept-row:hover {
+            background: #f1f5f9;
+        }
+
+        .dept-row.expanded {
+            background: #e6f0ff;
+            border-bottom: none;
+        }
+
+        .dept-detail {
+            grid-column: 1 / -1;
+            background: #f8fafc;
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .gap-value {
+            font-weight: 700;
+        }
+
+        .gap-positive {
+            color: #c0392b;
+        }
+
+        .gap-negative {
+            color: #27ae60;
+        }
+
+        .add-btn {
+            background: #1a4d8c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            height: 35px;
+        }
+
+        .add-btn:hover {
+            background: #0d3a6f;
+        }
+
+        .add-btn.added {
+            background: #95a5a6;
+            cursor: default;
+        }
+
+        .add-btn.added:hover {
+            background: #95a5a6;
+        }
+
+        /* 我的清單 */
+        .favorites-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-top: 30px;
+        }
+
+        .favorites-list {
+            margin-top: 20px;
+        }
+
+        .favorite-item {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1fr 1fr 0.5fr;
+            align-items: center;
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .favorite-detail {
+            grid-column: 1 / -1;
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .remove-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            height: 35px;
+        }
+
+        .remove-btn:hover {
+            background: #c0392b;
+        }
+
+        .calc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .calc-table th, .calc-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .subject-tag {
+            display: inline-block;
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 0.85rem;
+        }
+
+        .missing-subjects {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff3cd;
+            border-radius: 6px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 分科測驗志願落點分析</h1>
+
+        <!-- 成績輸入區 -->
+        <div class="score-panel">
+            <h2>📝 輸入你的成績</h2>
+            <div class="filter-stats">
+                <strong>ℹ️ 使用說明：</strong><br>
+                • 已有成績 → 填入實際分數<br>
+                • 打算要考的科目 → 填入 0（表示之後會考）<br>
+                • 不打算考的科目 → 留空白（該科系會被篩選掉）
+            </div>
+            
+            <!-- 第一行：國文 英文 數A 數B 社會 自然 -->
+            <div class="score-row" id="scoreRow1"></div>
+            
+            <!-- 第二行：數甲 數乙 地理 歷史 公民 物理 化學 生物 -->
+            <div class="score-row" id="scoreRow2"></div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="updateAllCalculations()">更新落點分析</button>
+                <button class="btn btn-secondary" onclick="resetScores()">清除所有成績</button>
+            </div>
+        </div>
+
+        <!-- 主要瀏覽區 -->
+        <div class="control-bar">
+            <div class="year-selector" id="yearSelector"></div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 搜尋學校或科系名稱..." oninput="filterDepartments()">
+            </div>
+        </div>
+
+        <!-- 科系列表 -->
+        <div class="dept-list" id="deptList">
+            <div class="list-header">
+                <div>校系名稱</div>
+                <div>採計科目</div>
+                <div>最低錄取</div>
+                <div>預估差距</div>
+                <div>操作</div>
+            </div>
+            <div id="deptRows"></div>
+        </div>
+
+        <!-- 我的清單 -->
+        <div class="favorites-panel">
+            <h2>⭐ 我的追蹤清單 (共 <span id="favoritesCount">0</span> 個科系)</h2>
+            <div id="favoritesList" class="favorites-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // 全域變數
+        let allData = {};
+        let currentYear = '114';
+        let userScores = {};
+        let favorites = [];
+        let expandedRows = new Set();
+        let favExpandedRows = new Set();
+
+        // 科目順序
+        const subjectRows = {
+            row1: ['國文', '英文', '數A', '數B', '社會', '自然'],
+            row2: ['數甲', '數乙', '地理', '歷史', '公民', '物理', '化學', '生物']
+        };
+
+        // 基礎科目（用於判斷是否要顯示詳細）
+        const basicSubjects = ['國文', '英文', '數A', '數B', '社會', '自然'];
+
+        // 科目正規化
+        function normalizeSubject(subject) {
+            const map = {
+                '國': '國文', '國文': '國文',
+                '英': '英文', '英文': '英文',
+                '數甲': '數甲', '數A': '數A',
+                '數乙': '數乙', '數B': '數B',
+                '物': '物理', '物理': '物理',
+                '化': '化學', '化學': '化學',
+                '生': '生物', '生物': '生物',
+                '歷': '歷史', '歷史': '歷史',
+                '地': '地理', '地理': '地理',
+                '公': '公民', '公民': '公民',
+                '自然': '自然', '自': '自然',
+                '社會': '社會', '社': '社會'
+            };
+            return map[subject] || subject;
+        }
+
+        // 解析採計字串
+        function parseWeightString(weightStr) {
+            if (!weightStr) return {};
+            const weights = {};
+            const matches = weightStr.matchAll(/([^\sx]+)x([0-9.]+)/g);
+            for (const match of matches) {
+                weights[match[1]] = parseFloat(match[2]);
+            }
+            return weights;
+        }
+
+        // 檢查是否該顯示科系
+        function shouldShowDept(weights) {
+            for (const subject of Object.keys(weights)) {
+                const normSubject = normalizeSubject(subject);
+                if (userScores[normSubject] === undefined) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // 初始化
+        async function init() {
+            try {
+                document.getElementById('deptRows').innerHTML = '<div class="loading">📂 載入資料中...</div>';
+                
+                // 1. 讀取分數邏輯
+                const savedScores = localStorage.getItem('userScores');
+                if (savedScores) {
+                    userScores = JSON.parse(savedScores);
+                } else {
+                    userScores = {
+                        '國文': 41,
+                        '英文': 21,
+                        '數B': 21,
+                        '社會': 37
+                        // 你可以依此類推繼續加上去
+                    };
+                    localStorage.setItem('userScores', JSON.stringify(userScores));
+                }
+
+                // 2. 載入資料檔
+                const years = ['114', '113', '112', '111'];
+                for (const year of years) {
+                    const response = await fetch(`${year}.json`);
+                    allData[year] = await response.json();
+                }
+
+                // 3. 初始化介面
+                generateYearButtons();
+                generateScoreInputs();
+                loadFavorites();     // 這步只是把資料讀進變數
+                
+                // --- 關鍵修正：補上這一行，讓清單在網頁打開時立刻顯示 ---
+                renderFavorites(); 
+                // ----------------------------------------------------
+                
+                renderDeptList(currentYear);
+                
+            } catch (error) {
+                console.error('載入資料失敗:', error);
+                document.getElementById('deptRows').innerHTML = '<div class="no-data">❌ 載入資料失敗</div>';
+            }
+        }
+
+        // 產生年份按鈕
+        function generateYearButtons() {
+            const container = document.getElementById('yearSelector');
+            const years = ['114', '113', '112', '111'];
+            container.innerHTML = years.map(year => `
+                <button class="year-btn ${year === currentYear ? 'active' : ''}" 
+                        onclick="switchYear('${year}')">
+                    ${year} 學年度
+                </button>
+            `).join('');
+        }
+
+        function switchYear(year) {
+            currentYear = year;
+            generateYearButtons();
+            renderDeptList(currentYear);
+        }
+
+        // 產生輸入欄位
+        function generateScoreInputs() {
+            const row1Container = document.getElementById('scoreRow1');
+            row1Container.innerHTML = subjectRows.row1.map(subject => `
+                <div class="score-item">
+                    <label>${subject}</label>
+                    <input type="number" 
+                           id="score-${subject}" 
+                           value="${userScores[subject] !== undefined ? userScores[subject] : ''}" 
+                           placeholder="輸入分數"
+                           min="0" max="100" 
+                           step="0.1"
+                           onchange="updateScore('${subject}', this.value)">
+                </div>
+            `).join('');
+
+            const row2Container = document.getElementById('scoreRow2');
+            row2Container.innerHTML = subjectRows.row2.map(subject => `
+                <div class="score-item">
+                    <label>${subject}</label>
+                    <input type="number" 
+                           id="score-${subject}" 
+                           value="${userScores[subject] !== undefined ? userScores[subject] : ''}" 
+                           placeholder="輸入分數"
+                           min="0" max="100" 
+                           step="0.1"
+                           onchange="updateScore('${subject}', this.value)">
+                </div>
+            `).join('');
+        }
+
+        function updateScore(subject, value) {
+            if (value === '') {
+                delete userScores[subject];
+            } else {
+                userScores[subject] = parseFloat(value);
+            }
+            renderDeptList(currentYear);
+        }
+
+        function resetScores() {
+            userScores = {};
+            generateScoreInputs();
+            renderDeptList(currentYear);
+            renderFavorites();
+        }
+
+        function updateAllCalculations() {
+            renderDeptList(currentYear);
+            renderFavorites();
+        }
+
+        function filterDepartments() {
+            renderDeptList(currentYear);
+        }
+
+        // 計算差距
+        function calculateGap(dept) {
+            const weights = parseWeightString(dept["採計及加權"]);
+            let myTotal = 0;
+            
+            for (const [subject, weight] of Object.entries(weights)) {
+                const normSubject = normalizeSubject(subject);
+                const score = userScores[normSubject] || 0;
+                myTotal += score * weight;
+            }
+            
+            return dept["普通生錄取分數"] - myTotal;
+        }
+
+        // 取得需要補足的科目（排除基礎科目）
+        function getMissingSubjects(dept) {
+            const weights = parseWeightString(dept["採計及加權"]);
+            const missing = [];
+            
+            for (const [subject, weight] of Object.entries(weights)) {
+                const normSubject = normalizeSubject(subject);
+                // 如果不是基礎科目，而且分數是0
+                if (!basicSubjects.includes(normSubject) && (userScores[normSubject] === 0)) {
+                    missing.push({ subject, weight });
+                }
+            }
+            
+            return missing;
+        }
+
+        // 格式化科目顯示
+        function formatSubjects(weightStr) {
+            if (!weightStr) return '無採計資料';
+            const parts = weightStr.split(' ');
+            return parts.map(p => {
+                if (!p) return '';
+                const match = p.match(/([^\sx]+)x([0-9.]+)/);
+                if (match) {
+                    return `<span class="subject-tag">${match[1]} x${match[2]}</span>`;
+                }
+                return '';
+            }).join('');
+        }
+
+        // 產生詳細 HTML
+        function generateDetailHTML(dept, showMissingOnly = false) {
+            const weights = parseWeightString(dept["採計及加權"]);
+            let usedHTML = '';
+            let missingHTML = '';
+            let myTotal = 0;
+
+            for (const [subject, weight] of Object.entries(weights)) {
+                const normSubject = normalizeSubject(subject);
+                const score = userScores[normSubject] || 0;
+                const weighted = score * weight;
+                myTotal += weighted;
+                
+                const row = `
+                    <tr>
+                        <td>${subject}</td>
+                        <td>${score}</td>
+                        <td>x${weight}</td>
+                        <td>${weighted.toFixed(1)}</td>
+                    </tr>
+                `;
+                
+                if (showMissingOnly && score === 0 && !basicSubjects.includes(normSubject)) {
+                    missingHTML += row;
+                } else if (!showMissingOnly) {
+                    usedHTML += row;
+                }
+            }
+
+            const gap = dept["普通生錄取分數"] - myTotal;
+
+            if (showMissingOnly) {
+                return missingHTML;
+            }
+
+            return `
+                <h4>📋 詳細計算</h4>
+                <table class="calc-table">
+                    <tr>
+                        <th>科目</th>
+                        <th>你的成績</th>
+                        <th>加權</th>
+                        <th>加權後得分</th>
+                    </tr>
+                    ${usedHTML}
+                    <tr style="font-weight:700; background:#e2e8f0;">
+                        <td colspan="3">總計</td>
+                        <td>${myTotal.toFixed(1)}</td>
+                    </tr>
+                </table>
+                <p style="margin-top:10px;">
+                    📌 最低錄取分數：${dept["普通生錄取分數"]}<br>
+                    📌 ${gap > 0 ? `尚差 ${gap.toFixed(1)} 分` : `高出 ${Math.abs(gap).toFixed(1)} 分`}
+                </p>
+            `;
+        }
+
+        // 渲染科系列表
+        function renderDeptList(year) {
+            const data = allData[year];
+            if (!data) return;
+
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            
+            // 篩選流程
+            let filteredData = data.filter(dept => {
+                const weights = parseWeightString(dept["採計及加權"]);
+                return shouldShowDept(weights);
+            });
+
+            filteredData = filteredData.filter(dept => {
+                const name = `${dept["校名"]} ${dept["系組名"]}`.toLowerCase();
+                return name.includes(searchText);
+            });
+
+            const container = document.getElementById('deptRows');
+            
+            if (filteredData.length === 0) {
+                container.innerHTML = '<div class="no-data">沒有符合條件的科系</div>';
+                return;
+            }
+
+            // 建立 HTML 字串
+            let htmlContent = '';
+            filteredData.forEach(dept => {
+                const deptId = `${year}-${dept["系組代碼"]}`;
+                const isExpanded = expandedRows.has(deptId);
+                const gap = calculateGap(dept);
+                const gapClass = gap <= 0 ? 'gap-negative' : 'gap-positive';
+                const gapText = gap <= 0 ? `✅ 高出 ${Math.abs(gap).toFixed(1)} 分` : `尚差 ${gap.toFixed(1)} 分`;
+                const isInFavorites = favorites.some(f => f.id === deptId);
+                const missingSubjects = getMissingSubjects(dept);
+
+                // 重點：將物件轉為安全的 Base64，避免引號崩壞
+                const deptBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(dept))));
+
+                htmlContent += `
+                    <div class="dept-row ${isExpanded ? 'expanded' : ''}" onclick="toggleDetail('${deptId}')">
+                        <div>
+                            <strong>${dept["校名"]}</strong><br>
+                            <span style="font-size:0.9rem; color:#666;">${dept["系組名"]}</span>
+                        </div>
+                        <div style="font-size:0.9rem;">${formatSubjects(dept["採計及加權"])}</div>
+                        <div>${dept["普通生錄取分數"]}</div>
+                        <div class="gap-value ${gapClass}">${gapText}</div>
+                        <div onclick="event.stopPropagation()">
+                            <button class="add-btn ${isInFavorites ? 'added' : ''}" 
+                                    onclick="toggleFavorite('${deptId}', '${year}', '${deptBase64}')">
+                                ${isInFavorites ? '已加入' : '加入清單'}
+                            </button>
+                        </div>
+                    </div>
+                    ${isExpanded ? `
+                        <div class="dept-detail">
+                            ${generateDetailHTML(dept)}
+                            ${gap > 0 && missingSubjects.length > 0 ? `
+                                <div class="missing-subjects">
+                                    <strong>📌 需要加強的科目：</strong><br>
+                                    <table class="calc-table">
+                                        <tr>
+                                            <th>科目</th>
+                                            <th>目前成績</th>
+                                            <th>加權</th>
+                                            <th>加權後得分</th>
+                                        </tr>
+                                        ${generateDetailHTML(dept, true)}
+                                    </table>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                `;
+            });
+
+            container.innerHTML = htmlContent;
+        }
+
+        function toggleDetail(deptId) {
+            if (expandedRows.has(deptId)) {
+                expandedRows.delete(deptId);
+            } else {
+                expandedRows.add(deptId);
+            }
+            renderDeptList(currentYear);
+        }
+
+        function toggleFavorite(deptId, year, deptBase64) {
+            // 解碼 Base64 回物件
+            const dept = JSON.parse(decodeURIComponent(escape(atob(deptBase64))));
+            
+            const index = favorites.findIndex(f => f.id === deptId);
+            
+            if (index === -1) {
+                favorites.push({
+                    id: deptId,
+                    year: year,
+                    ...dept
+                });
+            } else {
+                favorites.splice(index, 1);
+            }
+            
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            document.getElementById('favoritesCount').textContent = favorites.length;
+            
+            renderDeptList(currentYear);
+            renderFavorites();
+        }
+
+        function removeFromFavorites(deptId) {
+            favorites = favorites.filter(f => f.id !== deptId);
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            document.getElementById('favoritesCount').textContent = favorites.length;
+            renderDeptList(currentYear);
+            renderFavorites();
+        }
+
+        function loadFavorites() {
+            const saved = localStorage.getItem('favorites');
+            if (saved) {
+                try {
+                    favorites = JSON.parse(saved);
+                } catch (e) {
+                    favorites = [];
+                }
+            }
+            document.getElementById('favoritesCount').textContent = favorites.length;
+        }
+
+        function renderFavorites() {
+            const container = document.getElementById('favoritesList');
+            
+            if (favorites.length === 0) {
+                container.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">📌 尚無追蹤科系</div>';
+                return;
+            }
+
+            container.innerHTML = favorites.map((dept, index) => {
+                const gap = calculateGap(dept);
+                const gapClass = gap <= 0 ? 'gap-negative' : 'gap-positive';
+                const gapText = gap <= 0 ? `✅ 高出 ${Math.abs(gap).toFixed(1)} 分` : `尚差 ${gap.toFixed(1)} 分`;
+                const isExpanded = favExpandedRows.has(dept.id);
+
+                return `
+                    <div class="favorite-item" onclick="toggleFavDetail('${dept.id}')" style="cursor: pointer; ${isExpanded ? 'background: #e6f0ff;' : ''}">
+                        <div>
+                            <strong>${dept["校名"]}</strong><br>
+                            <span style="font-size:0.9rem;">${dept["系組名"]} (${dept.year})</span>
+                        </div>
+                        <div style="font-size:0.9rem;">${formatSubjects(dept["採計及加權"])}</div>
+                        <div>${dept["普通生錄取分數"]}</div>
+                        <div class="gap-value ${gapClass}">${gapText}</div>
+                        <div onclick="event.stopPropagation()" style="display: flex; gap: 5px; align-items: center;">
+                            <button class="btn-secondary" style="padding: 2px 8px; height: 30px;" onclick="moveFavorite(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                            <button class="btn-secondary" style="padding: 2px 8px; height: 30px;" onclick="moveFavorite(${index}, 1)" ${index === favorites.length - 1 ? 'disabled' : ''}>▼</button>
+                            <button class="remove-btn" onclick="removeFromFavorites('${dept.id}')">移除</button>
+                        </div>
+                        
+                        ${isExpanded ? `
+                            <div class="favorite-detail" onclick="event.stopPropagation()">
+                                ${generateDetailHTML(dept)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 新增：切換收藏清單展開狀態的函式
+        function toggleFavDetail(deptId) {
+            if (favExpandedRows.has(deptId)) {
+                favExpandedRows.delete(deptId);
+            } else {
+                favExpandedRows.add(deptId);
+            }
+            renderFavorites();
+        }
+
+        function moveFavorite(index, direction) {
+            // index 是目前位置，direction 為 -1 (上移) 或 1 (下移)
+            const newIndex = index + direction;
+            
+            // 檢查是否超出邊界
+            if (newIndex < 0 || newIndex >= favorites.length) return;
+            
+            // 交換陣列元素
+            const temp = favorites[index];
+            favorites[index] = favorites[newIndex];
+            favorites[newIndex] = temp;
+            
+            // 儲存並更新畫面
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            renderFavorites();
+        }
+
+        // 啟動
+        init();
+    </script>
+</body>
+</html>

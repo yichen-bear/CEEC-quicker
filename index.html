@@ -241,7 +241,8 @@
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            height: 35px;
+            min-height: 35px;
+            max-height: 51px;
         }
 
         .add-btn:hover {
@@ -374,9 +375,15 @@
         <!-- 主要瀏覽區 -->
         <div class="control-bar">
             <div class="year-selector" id="yearSelector"></div>
+
+            <div class="year-selector">
+                <button id="type-all" class="year-btn active" onclick="filterByType('all')">全部學校</button>
+                <button id="type-public" class="year-btn" onclick="filterByType('public')">公立大學</button>
+                <button id="type-private" class="year-btn" onclick="filterByType('private')">私立大學</button>
+            </div>
             
             <button id="passFilterBtn" class="year-btn" onclick="togglePassFilter()">
-                只看錄取
+                顯示全部
             </button>
 
             <div class="search-box">
@@ -412,6 +419,7 @@
         let expandedRows = new Set();
         let favExpandedRows = new Set();
         let showOnlyPass = false;
+        let currentType = 'all';
 
         // 科目順序
         const subjectRows = {
@@ -468,10 +476,7 @@
             try {
                 document.getElementById('deptRows').innerHTML = '<div class="loading">📂 載入資料中...</div>';
                 
-                // 1. 讀取分數邏輯
                 const savedScores = localStorage.getItem('userScores');
-        
-                // 修改判斷條件：如果沒資料，或者是空的物件 {}，就填入預設值
                 if (savedScores && savedScores !== '{}') {
                     userScores = JSON.parse(savedScores);
                 } else {
@@ -479,30 +484,33 @@
                         '國文': 41, '英文': 21, '數B': 21, '社會': 37,
                         '數乙': 45, '地理': 48, '歷史': 48, '公民': 48
                     };
-                    localStorage.setItem('userScores', JSON.stringify(userScores));
                 }
 
-                // 2. 載入資料檔
                 const years = ['114', '113', '112', '111'];
                 for (const year of years) {
-                    const response = await fetch(`${year}.json`);
-                    allData[year] = await response.json();
+                    try {
+                        const response = await fetch(`${year}.json`);
+                        if (!response.ok) throw new Error(`找不到 ${year}.json`);
+                        allData[year] = await response.json();
+                    } catch (err) {
+                        console.warn(`跳過讀取 ${year}.json:`, err);
+                    }
                 }
 
-                // 3. 初始化介面
+                // 檢查是否至少有一年資料載入成功
+                if (Object.keys(allData).length === 0) {
+                    throw new Error('所有年份的資料載入都失敗了，請檢查 JSON 檔案是否存在。');
+                }
+
                 generateYearButtons();
                 generateScoreInputs();
-                loadFavorites();     // 這步只是把資料讀進變數
-                
-                // --- 關鍵修正：補上這一行，讓清單在網頁打開時立刻顯示 ---
+                loadFavorites();
                 renderFavorites(); 
-                // ----------------------------------------------------
-                
                 renderDeptList(currentYear);
                 
             } catch (error) {
                 console.error('載入資料失敗:', error);
-                document.getElementById('deptRows').innerHTML = '<div class="no-data">❌ 載入資料失敗</div>';
+                document.getElementById('deptRows').innerHTML = `<div class="no-data">❌ 載入失敗: ${error.message}</div>`;
             }
         }
 
@@ -685,37 +693,49 @@
         // 渲染科系列表
         function renderDeptList(year) {
             const data = allData[year];
-            if (!data) return;
+            if (!data) {
+                document.getElementById('deptRows').innerHTML = '<div class="no-data">暫無該年度資料</div>';
+                return;
+            }
 
             const searchText = document.getElementById('searchInput').value.toLowerCase();
             
-            // 篩選流程
             let filteredData = data.filter(dept => {
+                // A. 排除空白無效資料與標頭
+                if (!dept["系組代碼"] || dept["校名"] === "校名" || !dept["校名"]) return false;
+
+                // B. 搜尋過濾
+                const fullName = `${dept["校名"]} ${dept["系組名"]}`.toLowerCase();
+                if (searchText && !fullName.includes(searchText)) return false;
+
+                // C. 採計科目過濾 (使用者是否有輸入對應成績)
                 const weights = parseWeightString(dept["採計及加權"]);
-                const isSubjectMatch = shouldShowDept(weights);
+                if (!shouldShowDept(weights)) return false;
+
+                // D. 公私立過濾 (更嚴謹的判定)
+                const isPublic = dept["校名"].startsWith('國立') || 
+                                dept["校名"].includes('市立') || 
+                                dept["校名"].includes('縣立');
                 
-                // 如果開啟了「只看錄取」，多加一個差距判斷
+                if (currentType === 'public' && !isPublic) return false;
+                if (currentType === 'private' && isPublic) return false;
+
+                // E. 只看錄取過濾 (與 D 同時生效)
                 if (showOnlyPass) {
                     const gap = calculateGap(dept);
-                    return isSubjectMatch && gap <= 0; // gap <= 0 代表分數夠
+                    if (gap > 0) return false; // 分數不夠就不顯示
                 }
-                
-                return isSubjectMatch;
-            });
 
-            filteredData = filteredData.filter(dept => {
-                const name = `${dept["校名"]} ${dept["系組名"]}`.toLowerCase();
-                return name.includes(searchText);
+                return true;
             });
 
             const container = document.getElementById('deptRows');
-            
             if (filteredData.length === 0) {
                 container.innerHTML = '<div class="no-data">沒有符合條件的科系</div>';
                 return;
             }
 
-            // 建立 HTML 字串
+            // 渲染 HTML (這部分維持你原本的迴圈邏輯)
             let htmlContent = '';
             filteredData.forEach(dept => {
                 const deptId = `${year}-${dept["系組代碼"]}`;
@@ -724,9 +744,6 @@
                 const gapClass = gap <= 0 ? 'gap-negative' : 'gap-positive';
                 const gapText = gap <= 0 ? `✅ 高出 ${Math.abs(gap).toFixed(1)} 分` : `尚差 ${gap.toFixed(1)} 分`;
                 const isInFavorites = favorites.some(f => f.id === deptId);
-                const missingSubjects = getMissingSubjects(dept);
-
-                // 重點：將物件轉為安全的 Base64，避免引號崩壞
                 const deptBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(dept))));
 
                 htmlContent += `
@@ -745,25 +762,7 @@
                             </button>
                         </div>
                     </div>
-                    ${isExpanded ? `
-                        <div class="dept-detail">
-                            ${generateDetailHTML(dept)}
-                            ${gap > 0 && missingSubjects.length > 0 ? `
-                                <div class="missing-subjects">
-                                    <strong>📌 需要加強的科目：</strong><br>
-                                    <table class="calc-table">
-                                        <tr>
-                                            <th>科目</th>
-                                            <th>目前成績</th>
-                                            <th>加權</th>
-                                            <th>加權後得分</th>
-                                        </tr>
-                                        ${generateDetailHTML(dept, true)}
-                                    </table>
-                                </div>
-                            ` : ''}
-                        </div>
-                    ` : ''}
+                    ${isExpanded ? `<div class="dept-detail">${generateDetailHTML(dept)}</div>` : ''}
                 `;
             });
 
@@ -893,14 +892,37 @@
             const btn = document.getElementById('passFilterBtn');
             
             if (showOnlyPass) {
-                btn.innerText = "顯示全部";
-                btn.classList.remove('active'); // 沿用你原本年份按鈕的藍色樣式
-            } else {
                 btn.innerText = "只看錄取";
-                btn.classList.add('active');
+                btn.classList.add('active'); // 沿用你原本年份按鈕的藍色樣式
+            } else {
+                btn.innerText = "顯示全部";
+                btn.classList.remove('active');
             }
             
             renderDeptList(currentYear);
+        }
+
+        function filterByType(type) {
+            currentType = type;
+            
+            // 更新按鈕樣式
+            document.getElementById('type-all').classList.remove('active');
+            document.getElementById('type-public').classList.remove('active');
+            document.getElementById('type-private').classList.remove('active');
+            
+            document.getElementById('type-' + type).classList.add('active');
+            
+            // 重新渲染列表
+            renderDeptList(currentYear);
+        }
+
+        // 判定公私立的輔助函式
+        function isPublicSchool(schoolName) {
+            if (!schoolName) return false;
+            // 台灣公立大學通常以「國立」、「市立」、「縣立」開頭，或是「國立」字眼在校名內
+            return schoolName.startsWith('國立') || 
+                schoolName.includes('市立') || 
+                schoolName.includes('縣立');
         }
 
         // 啟動

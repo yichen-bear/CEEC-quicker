@@ -374,6 +374,11 @@
         <!-- 主要瀏覽區 -->
         <div class="control-bar">
             <div class="year-selector" id="yearSelector"></div>
+            
+            <button id="passFilterBtn" class="year-btn" onclick="togglePassFilter()">
+                只看錄取
+            </button>
+
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 搜尋學校或科系名稱..." oninput="filterDepartments()">
             </div>
@@ -406,6 +411,7 @@
         let favorites = [];
         let expandedRows = new Set();
         let favExpandedRows = new Set();
+        let showOnlyPass = false;
 
         // 科目順序
         const subjectRows = {
@@ -464,19 +470,14 @@
                 
                 // 1. 讀取分數邏輯
                 const savedScores = localStorage.getItem('userScores');
-                if (savedScores) {
+        
+                // 修改判斷條件：如果沒資料，或者是空的物件 {}，就填入預設值
+                if (savedScores && savedScores !== '{}') {
                     userScores = JSON.parse(savedScores);
                 } else {
                     userScores = {
-                        '國文': 41,
-                        '英文': 21,
-                        '數B': 21,
-                        '社會': 37,
-                        '數乙': 45,
-                        '地理': 48,
-                        '歷史': 48,
-                        '公民': 48
-                        // 你可以依此類推繼續加上去
+                        '國文': 41, '英文': 21, '數B': 21, '社會': 37,
+                        '數乙': 45, '地理': 48, '歷史': 48, '公民': 48
                     };
                     localStorage.setItem('userScores', JSON.stringify(userScores));
                 }
@@ -560,6 +561,7 @@
             } else {
                 userScores[subject] = parseFloat(value);
             }
+            localStorage.setItem('userScores', JSON.stringify(userScores));
             renderDeptList(currentYear);
         }
 
@@ -690,7 +692,15 @@
             // 篩選流程
             let filteredData = data.filter(dept => {
                 const weights = parseWeightString(dept["採計及加權"]);
-                return shouldShowDept(weights);
+                const isSubjectMatch = shouldShowDept(weights);
+                
+                // 如果開啟了「只看錄取」，多加一個差距判斷
+                if (showOnlyPass) {
+                    const gap = calculateGap(dept);
+                    return isSubjectMatch && gap <= 0; // gap <= 0 代表分數夠
+                }
+                
+                return isSubjectMatch;
             });
 
             filteredData = filteredData.filter(dept => {
@@ -876,6 +886,21 @@
             // 儲存並更新畫面
             localStorage.setItem('favorites', JSON.stringify(favorites));
             renderFavorites();
+        }
+
+        function togglePassFilter() {
+            showOnlyPass = !showOnlyPass;
+            const btn = document.getElementById('passFilterBtn');
+            
+            if (showOnlyPass) {
+                btn.innerText = "顯示全部";
+                btn.classList.remove('active'); // 沿用你原本年份按鈕的藍色樣式
+            } else {
+                btn.innerText = "只看錄取";
+                btn.classList.add('active');
+            }
+            
+            renderDeptList(currentYear);
         }
 
         // 啟動

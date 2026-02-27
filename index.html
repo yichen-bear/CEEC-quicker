@@ -443,7 +443,6 @@
             border: none; 
             background: transparent; 
             color: #718096; 
-            text-decoration: underline; 
             cursor: pointer;
             font-size: 0.85rem;
         }
@@ -551,12 +550,9 @@
         }
 
         .logout-link {
-            background: none;
-            border: none;
-            color: #718096;
-            text-decoration: underline;
-            font-size: 0.8rem;
-            cursor: pointer;
+            background: #1a8c66;
+            border: 1.5px solid #1a8c66;
+            color: #ffffff;
         }
 
         /* 針對極小螢幕縮減文字 */
@@ -580,9 +576,9 @@
 
             <div id="auth-section">
                 <button id="login-btn" class="nav-btn login-border" onclick="openAuthModal()">登入</button>
-                <div id="user-info" style="display: none; align-items: center; gap: 5px;">
-                    <img id="user-photo" src="" style="width: 24px; height: 24px; border-radius: 50%;">
-                    <button onclick="handleLogout()" class="logout-link">登出</button>
+                <div id="user-info" style="display: none; align-items: center; gap: 8px;">
+                    <img id="user-photo" src="" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">
+                    <button onclick="handleLogout()" class="nav-btn logout-link">登出</button>
                 </div>
             </div>
         </div>
@@ -597,7 +593,7 @@
                     • 打算要考的科目 → 填入 0（表示之後會考）<br>
                     • 不打算考的科目 → 留空白（該科系會被篩選掉
                     <br><br>
-                    ✌️ 免費註冊登入以獲得清單與儲存功能
+                    ✌️ 免費註冊登入以獲得清單、預設值與儲存功能
                 </div>
                 
                 <!-- 第一行：國文 英文 數A 數B 社會 自然 -->
@@ -607,6 +603,7 @@
                 <div class="score-row" id="scoreRow2"></div>
                 
                 <div class="btn-group">
+                    <button id="save-default-btn" class="btn btn-primary" onclick="saveScoresToCloud()" style="display: none; background: #27ae60;">設為預設值</button>
                     <button class="btn btn-secondary" onclick="resetScores()">清除所有成績</button>
                 </div>
             </div>
@@ -709,23 +706,52 @@
 
         // 監聽登入狀態
         auth.onAuthStateChanged(async (user) => {
-        const loginBtn = document.getElementById('login-btn');
-        const userInfo = document.getElementById('user-info');
-        
-        if (user) {
-            loginBtn.style.display = 'none';
-            userInfo.style.display = 'flex';
-            // 抓取雲端清單
-            await loadFavoritesFromCloud(); 
-        } else {
-            loginBtn.style.display = 'block';
-            userInfo.style.display = 'none';
-            // 登出時清空本地顯示（或保持本地緩存，視你需求而定）
-            favorites = [];
-            renderFavorites();
-        }
-        renderDeptList(currentYear);
-    });
+            const loginBtn = document.getElementById('login-btn');
+            const userInfo = document.getElementById('user-info');
+            const saveDefaultBtn = document.getElementById('save-default-btn');
+            const userNameEl = document.getElementById('user-name');
+            const userPhotoEl = document.getElementById('user-photo');
+            
+            if (user) {
+                // --- 登入狀態 ---
+                loginBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                if (saveDefaultBtn) saveDefaultBtn.style.display = 'inline-block';
+
+                // 顯示名字與頭像
+                if (userNameEl) userNameEl.textContent = user.displayName || user.email.split('@')[0];
+                if (userPhotoEl) {
+                    userPhotoEl.src = user.photoURL || 'https://www.gravatar.com/avatar/000?d=mp';
+                }
+
+                // 載入雲端資料
+                await loadDefaultScoresFromCloud(); 
+                await loadFavoritesFromCloud(); 
+            } else {
+                // --- 登出狀態 ---
+                loginBtn.style.display = 'block';
+                userInfo.style.display = 'none';
+                if (saveDefaultBtn) saveDefaultBtn.style.display = 'none';
+
+                // 1. 重要：清空頭像與名字，防止下次登入前閃過舊資料
+                if (userPhotoEl) userPhotoEl.src = "";
+                if (userNameEl) userNameEl.textContent = "";
+
+                // 2. 清空成績數據與本地暫存
+                userScores = {}; 
+                localStorage.removeItem('userScores'); 
+                
+                // 3. 清空收藏清單
+                favorites = [];
+                localStorage.removeItem('favorites');
+
+                // 4. 刷新介面
+                generateScoreInputs(); 
+                renderFavorites();
+                console.log("已登出，所有個人資料已從畫面清除");
+            }
+            renderDeptList(currentYear);
+        });
 
         // 登入函式 (現在可以正確被 onclick 呼叫)
         async function handleLogin() {
@@ -739,7 +765,12 @@
         }
 
         function handleLogout() {
-            auth.signOut();
+            if (confirm("確定要登出嗎？登出後將清空畫面上未儲存的成績。")) {
+                auth.signOut().then(() => {
+                    // 這裡可以跳轉頁面或顯示訊息
+                    alert("已安全登出");
+                });
+            }
         }
 
 
@@ -811,13 +842,7 @@
                 const savedScores = localStorage.getItem('userScores');
                 if (savedScores && savedScores !== '{}') {
                     userScores = JSON.parse(savedScores);
-                } else {
-                    userScores = {
-                        '國文': 41, '英文': 21, '數B': 21, '社會': 37,
-                        '數乙': 41, '地理': 41, '歷史': 41, '公民': 41
-                    };
                 }
-
                 const years = ['114', '113', '112', '111'];
                 for (const year of years) {
                     try {
@@ -1495,6 +1520,47 @@
                 }
             } catch (error) {
                 console.error("載入雲端資料失敗", error);
+            }
+        }
+
+        // --- 功能 A：將目前輸入框的分數存到雲端 ---
+        async function saveScoresToCloud() {
+            const user = auth.currentUser;
+            if (!user) return alert("請先登入才能儲存預設成績");
+
+            try {
+                await db.collection('users').doc(user.uid).set({
+                    defaultScores: userScores, // 儲存目前的成績物件
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                
+                alert("預設成績已成功儲存至雲端！");
+            } catch (error) {
+                console.error("儲存失敗", error);
+                alert("儲存失敗，請檢查網路或權限設定");
+            }
+        }
+
+        // --- 功能 B：從雲端抓取預設成績並填入 ---
+        async function loadDefaultScoresFromCloud() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (doc.exists && doc.data().defaultScores) {
+                    const cloudScores = doc.data().defaultScores;
+                    
+                    // 將雲端資料覆蓋到目前的 userScores
+                    userScores = cloudScores;
+                    localStorage.setItem('userScores', JSON.stringify(userScores));
+                    
+                    // 重新產生輸入框，讓數值顯示在畫面上
+                    generateScoreInputs(); 
+                    console.log("已套用雲端預設成績");
+                }
+            } catch (error) {
+                console.error("載入預設成績失敗", error);
             }
         }
 

@@ -592,7 +592,8 @@
                     • 已有成績 → 填入實際分數<br>
                     • 打算要考的科目 → 填入 0（表示之後會考）<br>
                     • 不打算考的科目 → 留空白（該科系會被篩選掉
-                    <br><br>
+                </div>
+                <div id="promo-banner" class="filter-stats" style="margin-top: 15px; padding: 10px; background: #fff9da;">
                     ✌️ 免費註冊登入以獲得清單、預設值與儲存功能
                 </div>
                 
@@ -711,12 +712,14 @@
             const saveDefaultBtn = document.getElementById('save-default-btn');
             const userNameEl = document.getElementById('user-name');
             const userPhotoEl = document.getElementById('user-photo');
+            const promoBanner = document.getElementById('promo-banner'); // 取得提示文字元素
             
             if (user) {
                 // --- 登入狀態 ---
                 loginBtn.style.display = 'none';
                 userInfo.style.display = 'flex';
                 if (saveDefaultBtn) saveDefaultBtn.style.display = 'inline-block';
+                if (promoBanner) promoBanner.style.display = 'none'; // 登入後隱藏
 
                 // 顯示名字與頭像
                 if (userNameEl) userNameEl.textContent = user.displayName || user.email.split('@')[0];
@@ -732,6 +735,7 @@
                 loginBtn.style.display = 'block';
                 userInfo.style.display = 'none';
                 if (saveDefaultBtn) saveDefaultBtn.style.display = 'none';
+                if (promoBanner) promoBanner.style.display = 'block'; // 沒登入時要顯示
 
                 // 1. 重要：清空頭像與名字，防止下次登入前閃過舊資料
                 if (userPhotoEl) userPhotoEl.src = "";

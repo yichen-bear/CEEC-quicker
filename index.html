@@ -297,7 +297,7 @@
             border-radius: 6px;
             padding: 5px 10px;
             cursor: pointer;
-            min-height: 35px;
+            min-height: 43px;
             max-height: 51px;
         }
 
@@ -344,6 +344,59 @@
             background: #fff3cd;
             border-radius: 6px;
             color: #856404;
+        }
+
+        /* 柔和圓角按鈕樣式 */
+        .move-btn-soft {
+            background: #edf2f7;
+            border: none;
+            color: #4a5568;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px; /* 圓角 */
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .move-btn-soft:hover:not(:disabled) {
+            background: #e2e8f0;
+            color: #1a4d8c;
+        }
+
+        .move-btn-soft:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .tab-btn-soft {
+            background: #1a4d8c;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+
+        .remove-btn-soft {
+            background: #fff5f5;
+            color: #c53030;
+            border: 1px solid #feb2b2;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .remove-btn-soft:hover {
+            background: #feb2b2;
+            color: white;
         }
     </style>
 </head>
@@ -874,48 +927,88 @@
 
         function renderFavorites() {
             const container = document.getElementById('favoritesList');
-            
-            // 1. 取得收藏頁面搜尋框的文字
             const favSearchText = document.getElementById('favSearchInput') ? document.getElementById('favSearchInput').value.toLowerCase() : '';
             
-            // 2. 先過濾出符合搜尋條件的項目
-            const filteredFavs = favorites.filter(dept => {
-                const fullName = `${dept["校名"]} ${dept["系組名"]}`.toLowerCase();
-                return fullName.includes(favSearchText);
-            });
-
-            // 如果完全沒收藏
             if (favorites.length === 0) {
                 container.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">📌 尚無追蹤科系</div>';
                 return;
             }
 
-            // 如果搜尋後沒結果
-            if (filteredFavs.length === 0) {
-                container.innerHTML = `<div style="color:#666; text-align:center; padding:20px;">🔍 找不到相符的 "${favSearchText}"</div>`;
-                return;
-            }
+            // --- 第一步：依照原始順序進行分組 ---
+            const groups = [];
+            const groupMap = new Map();
 
-            // 3. 使用過濾後的 filteredFavs 進行渲染 (原本是用 favorites.map)
-            container.innerHTML = filteredFavs.map((dept, index) => {
-                const gap = calculateGap(dept);
-                const gapClass = gap <= 0 ? 'gap-negative' : 'gap-positive';
-                const gapText = gap <= 0 ? `✅ 高出 ${Math.abs(gap).toFixed(1)} 分` : `尚差 ${gap.toFixed(1)} 分`;
-                const isExpanded = favExpandedRows.has(dept.id);
+            favorites.forEach(dept => {
+                const groupKey = `${dept["校名"]}-${dept["系組名"]}`;
+                if (!groupMap.has(groupKey)) {
+                    const newGroup = {
+                        key: groupKey,
+                        school: dept["校名"],
+                        name: dept["系組名"],
+                        items: []
+                    };
+                    groupMap.set(groupKey, newGroup);
+                    groups.push(newGroup);
+                }
+                groupMap.get(groupKey).items.push(dept);
+            });
+
+            // --- 第二步：針對每個群組內的年份進行「由大到小」排序 ---
+            groups.forEach(group => {
+                group.items.sort((a, b) => parseInt(b.year) - parseInt(a.year));
+            });
+
+            // --- 第三步：過濾搜尋 ---
+            const filteredGroups = groups.filter(g => 
+                `${g.school} ${g.name}`.toLowerCase().includes(favSearchText)
+            );
+
+            // --- 第四步：渲染 HTML (包含柔和圓角按鈕樣式) ---
+            container.innerHTML = filteredGroups.map((group, gIndex) => {
+                const isGroupExpanded = favExpandedRows.has(group.key);
 
                 return `
-                    <div class="favorite-item" onclick="toggleFavDetail('${dept.id}')" style="cursor: pointer; ${isExpanded ? 'background: #e6f0ff;' : ''}">
-                        <div>
-                            <strong>${dept["校名"]}</strong><br>
-                            <span style="font-size:0.9rem;">${dept["系組名"]} (${dept.year})</span>
+                    <div class="favorite-group" style="margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                        <div class="group-header" style="padding: 12px 20px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-bottom: ${isGroupExpanded ? '1px solid #e2e8f0' : 'none'};">
+                            <div onclick="toggleFavDetail('${group.key}')" style="cursor: pointer; flex: 1;">
+                                <strong style="font-size: 1.1rem; color: #1a4d8c;">${group.school}</strong>
+                                <span style="margin-left: 10px; color: #4a5568;">${group.name}</span>
+                            </div>
+                            
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <button class="move-btn-soft" onclick="moveFavoriteGroup(${gIndex}, -1)" ${gIndex === 0 ? 'disabled' : ''}>▲</button>
+                                <button class="move-btn-soft" onclick="moveFavoriteGroup(${gIndex}, 1)" ${gIndex === filteredGroups.length - 1 ? 'disabled' : ''}>▼</button>
+                                
+                                <button class="tab-btn-soft" onclick="toggleFavDetail('${group.key}')">
+                                    ${isGroupExpanded ? '收合' : '展開'}
+                                </button>
+                            </div>
                         </div>
-                        <div style="font-size:0.9rem;">${formatSubjects(dept["採計及加權"])}</div>
-                        <div>${dept["普通生錄取分數"]}</div>
-                        <div class="gap-value ${gapClass}">${gapText}</div>
-                        <div onclick="event.stopPropagation()" style="display: flex; gap: 5px; align-items: center;">
-                            <button class="remove-btn" onclick="removeFromFavorites('${dept.id}')">移除</button>
-                        </div>
-                        ${isExpanded ? `<div class="favorite-detail" onclick="event.stopPropagation()">${generateDetailHTML(dept)}</div>` : ''}
+
+                        ${isGroupExpanded ? `
+                            <div class="group-content">
+                                ${group.items.map(dept => {
+                                    const isItemExpanded = favExpandedRows.has(dept.id);
+                                    const gap = calculateGap(dept);
+                                    const gapClass = gap <= 0 ? 'gap-negative' : 'gap-positive';
+                                    return `
+                                        <div style="border-top: 1px solid #f1f5f9;">
+                                            <div onclick="toggleFavDetail('${dept.id}')" 
+                                                style="padding: 10px 25px; cursor: pointer; display: grid; grid-template-columns: 0.8fr 2fr 1fr 1fr 0.5fr; align-items: center; font-size: 0.9rem;">
+                                                <div style="font-weight: bold;">${dept.year}年</div>
+                                                <div style="font-size: 0.8rem; color:#718096;">${formatSubjects(dept["採計及加權"])}</div>
+                                                <div style="color:#4a5568;">${dept["普通生錄取分數"]}</div>
+                                                <div class="${gapClass}" style="font-weight:600;">${gap <= 0 ? '✅ +'+Math.abs(gap).toFixed(1) : '尚差 '+gap.toFixed(1)}</div>
+                                                <div onclick="event.stopPropagation()">
+                                                    <button class="remove-btn-soft" onclick="removeFromFavorites('${dept.id}')">移除</button>
+                                                </div>
+                                            </div>
+                                            ${isItemExpanded ? `<div style="padding: 15px 30px; background: #fafafa; border-top: 1px dashed #e2e8f0;">${generateDetailHTML(dept)}</div>` : ''}
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
@@ -1009,6 +1102,40 @@
                 // 切換到清單頁時，強制重新刷新清單內容
                 renderFavorites();
             }
+        }
+
+        function moveFavoriteGroup(groupIndex, direction) {
+            // 1. 先進行分組，確認目前的校系順序
+            const groupOrder = [];
+            const groupMap = new Map();
+            
+            favorites.forEach(dept => {
+                const key = `${dept["校名"]}-${dept["系組名"]}`;
+                if (!groupMap.has(key)) {
+                    groupMap.set(key, []);
+                    groupOrder.push(key);
+                }
+                groupMap.get(key).push(dept);
+            });
+
+            const targetIndex = groupIndex + direction;
+            if (targetIndex < 0 || targetIndex >= groupOrder.length) return;
+
+            // 2. 在 groupOrder 中交換兩個校系 Key 的位置
+            const temp = groupOrder[groupIndex];
+            groupOrder[groupIndex] = groupOrder[targetIndex];
+            groupOrder[targetIndex] = temp;
+
+            // 3. 根據新的 Key 順序重新建構 favorites 陣列
+            const newFavorites = [];
+            groupOrder.forEach(key => {
+                newFavorites.push(...groupMap.get(key));
+            });
+
+            // 4. 存回 LocalStorage 並更新畫面
+            favorites = newFavorites;
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            renderFavorites();
         }
 
         // 啟動

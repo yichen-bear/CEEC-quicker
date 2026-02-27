@@ -1178,36 +1178,56 @@
         }
 
         function toggleFavorite(deptId, year, deptBase64) {
-            // 檢查登入狀態
+            // 1. 檢查登入狀態
             if (!auth.currentUser) {
                 openAuthModal();
                 return;
             }
-            // 解碼 Base64 回物件
-            const dept = JSON.parse(decodeURIComponent(escape(atob(deptBase64))));
-            const index = favorites.findIndex(f => f.id === deptId);
-            
-            if (index === -1) {
-                favorites.push({
-                    id: deptId,
-                    year: year,
-                    ...dept
-                });
+
+            // 2. 解碼點擊的該筆資料，用來獲取「校名」與「系組名」作為搜尋基準
+            const clickedDept = JSON.parse(decodeURIComponent(escape(atob(deptBase64))));
+            const schoolName = clickedDept["校名"];
+            const deptName = clickedDept["系組名"];
+
+            // 3. 檢查清單中是否已經存在「該校系」的任何年度（判斷是否要移除）
+            const alreadyInList = favorites.some(f => f["校名"] === schoolName && f["系組名"] === deptName);
+
+            if (alreadyInList) {
+                // 如果已存在，執行「批次移除」：移除所有校名與系組名相同的項目
+                favorites = favorites.filter(f => !(f["校名"] === schoolName && f["系組名"] === deptName));
             } else {
-                favorites.splice(index, 1);
+                // 如果不存在，執行「批次加入」：從 allData 搜尋 111-114 所有符合的資料
+                const years = Object.keys(allData); // ['111', '112', '113', '114']
+                
+                years.forEach(y => {
+                    const yearData = allData[y];
+                    if (!yearData) return;
+
+                    // 在該年度中找尋相同的校系（考慮到代碼可能變動，用名稱最準）
+                    const matchedDept = yearData.find(d => d["校名"] === schoolName && d["系組名"] === deptName);
+                    
+                    if (matchedDept) {
+                        const newId = `${y}-${matchedDept["系組代碼"]}`;
+                        // 檢查是否重複加入 (防止萬一)
+                        if (!favorites.some(f => f.id === newId)) {
+                            favorites.push({
+                                id: newId,
+                                year: y,
+                                ...matchedDept
+                            });
+                        }
+                    }
+                });
             }
-            
+
+            // 4. 更新 LocalStorage 與 UI
             localStorage.setItem('favorites', JSON.stringify(favorites));
             document.getElementById('favoritesCount').textContent = favorites.length;
             
             renderDeptList(currentYear);
             renderFavorites();
 
-            const user = auth.currentUser;
-            if (user) {
-                // 使用 setDoc 或 updateDoc 將 favorites 陣列存入 Firestore 的 users/UID 文件中
-                console.log("正在同步資料到雲端...");
-            }
+            // 5. 同步到雲端
             syncFavoritesToCloud();
         }
 

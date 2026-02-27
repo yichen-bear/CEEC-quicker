@@ -620,7 +620,7 @@
                 </div>
                 
                 <button id="passFilterBtn" class="year-btn" onclick="togglePassFilter()">
-                    顯示全部
+                    只看錄取
                 </button>
 
                 <div class="search-box">
@@ -1354,10 +1354,10 @@
             const btn = document.getElementById('passFilterBtn');
             
             if (showOnlyPass) {
-                btn.innerText = "只看錄取";
+                btn.innerText = "顯示全部";
                 btn.classList.add('active'); // 沿用你原本年份按鈕的藍色樣式
             } else {
-                btn.innerText = "顯示全部";
+                btn.innerText = "只看錄取";
                 btn.classList.remove('active');
             }
             

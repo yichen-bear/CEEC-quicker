@@ -595,7 +595,9 @@
                     <strong>ℹ️ 使用說明：</strong><br>
                     • 已有成績 → 填入實際分數<br>
                     • 打算要考的科目 → 填入 0（表示之後會考）<br>
-                    • 不打算考的科目 → 留空白（該科系會被篩選掉）
+                    • 不打算考的科目 → 留空白（該科系會被篩選掉
+                    <br><br>
+                    ✌️ 免費註冊登入以獲得清單與儲存功能
                 </div>
                 
                 <!-- 第一行：國文 英文 數A 數B 社會 自然 -->
@@ -635,7 +637,7 @@
                     <div>採計科目</div>
                     <div>最低錄取</div>
                     <div>預估差距</div>
-                    <div>操作</div>
+                    <div>加入清單狀態</div>
                 </div>
                 <div id="deptRows"></div>
             </div>
@@ -662,7 +664,7 @@
             
             <div id="auth-fields">
                 <input type="email" id="auth-email" class="auth-input" placeholder="電子郵件">
-                <input type="password" id="auth-pw" class="auth-input" placeholder="密碼">
+                <input type="password" id="auth-pw" class="auth-input" placeholder="密碼 (至少6碼)">
                 <button class="nav-btn" style="width:100%; margin-top:15px; background:#1a4d8c; color:white; padding:12px;" onclick="handleEmailAuth()">確定</button>
             </div>
             
@@ -687,6 +689,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script>
         // Firebase 配置 (保留你原本的)
         const firebaseConfig = {
@@ -705,20 +708,24 @@
         const provider = new firebase.auth.GoogleAuthProvider();
 
         // 監聽登入狀態
-        auth.onAuthStateChanged((user) => {
-            const loginBtn = document.getElementById('login-btn');
-            const userInfo = document.getElementById('user-info');
-            
-            if (user) {
-                loginBtn.style.display = 'none';
-                userInfo.style.display = 'flex';
-                document.getElementById('user-name').textContent = user.displayName || user.email.split('@')[0];
-                document.getElementById('user-photo').src = user.photoURL || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
-            } else {
-                loginBtn.style.display = 'block';
-                userInfo.style.display = 'none';
-            }
-        });
+        auth.onAuthStateChanged(async (user) => {
+        const loginBtn = document.getElementById('login-btn');
+        const userInfo = document.getElementById('user-info');
+        
+        if (user) {
+            loginBtn.style.display = 'none';
+            userInfo.style.display = 'flex';
+            // 抓取雲端清單
+            await loadFavoritesFromCloud(); 
+        } else {
+            loginBtn.style.display = 'block';
+            userInfo.style.display = 'none';
+            // 登出時清空本地顯示（或保持本地緩存，視你需求而定）
+            favorites = [];
+            renderFavorites();
+        }
+        renderDeptList(currentYear);
+    });
 
         // 登入函式 (現在可以正確被 onclick 呼叫)
         async function handleLogin() {
@@ -1096,6 +1103,8 @@
                 return;
             }
 
+            const user = auth.currentUser; //
+
             // 渲染 HTML (這部分維持你原本的迴圈邏輯)
             let htmlContent = '';
             filteredData.forEach(dept => {
@@ -1118,8 +1127,8 @@
                         <div class="gap-value ${gapClass}">${gapText}</div>
                         <div onclick="event.stopPropagation()">
                             <button class="add-btn ${isInFavorites ? 'added' : ''}" 
-                                    onclick="toggleFavorite('${deptId}', '${year}', '${deptBase64}')">
-                                ${isInFavorites ? '已加入' : '加入清單'}
+                                    onclick="${user ? `toggleFavorite('${deptId}', '${year}', '${deptBase64}')` : 'openAuthModal()'}">
+                                ${!user ? '解鎖' : (isInFavorites ? '已加入' : '加入清單')}
                             </button>
                         </div>
                     </div>
@@ -1140,9 +1149,13 @@
         }
 
         function toggleFavorite(deptId, year, deptBase64) {
+            // 檢查登入狀態
+            if (!auth.currentUser) {
+                openAuthModal();
+                return;
+            }
             // 解碼 Base64 回物件
             const dept = JSON.parse(decodeURIComponent(escape(atob(deptBase64))));
-            
             const index = favorites.findIndex(f => f.id === deptId);
             
             if (index === -1) {
@@ -1166,6 +1179,7 @@
                 // 使用 setDoc 或 updateDoc 將 favorites 陣列存入 Firestore 的 users/UID 文件中
                 console.log("正在同步資料到雲端...");
             }
+            syncFavoritesToCloud();
         }
 
         function removeFromFavorites(deptId) {
@@ -1174,6 +1188,7 @@
             document.getElementById('favoritesCount').textContent = favorites.length;
             renderDeptList(currentYear);
             renderFavorites();
+            syncFavoritesToCloud();
         }
 
         function loadFavorites() {
@@ -1302,6 +1317,7 @@
             // 儲存並更新畫面
             localStorage.setItem('favorites', JSON.stringify(favorites));
             renderFavorites();
+            syncFavoritesToCloud();
         }
 
         function togglePassFilter() {
@@ -1347,6 +1363,12 @@
             const favoritesPage = document.getElementById('page-favorites');
             const tabAnalysis = document.getElementById('tab-analysis');
             const tabFavorites = document.getElementById('tab-favorites');
+
+            if (pageName === 'favorites' && !auth.currentUser) {
+                alert("請先登入/註冊以查看追蹤清單");
+                openAuthModal();
+                return;
+            }
 
             if (pageName === 'analysis') {
                 // 顯示分析，隱藏清單
@@ -1434,6 +1456,45 @@
                 closeAuthModal();
             } catch (error) {
                 alert("操作失敗：" + error.message);
+            }
+        }
+
+        // 初始化 Firestore
+        const db = firebase.firestore();
+
+        // --- 新增：同步清單到雲端 ---
+        async function syncFavoritesToCloud() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                await db.collection('users').doc(user.uid).set({
+                    myFavorites: favorites,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                console.log("雲端同步成功");
+            } catch (error) {
+                console.error("雲端同步失敗", error);
+            }
+        }
+
+        // --- 新增：從雲端載入清單 ---
+        async function loadFavoritesFromCloud() {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                const doc = await db.collection('users').doc(user.uid).get();
+                if (doc.exists && doc.data().myFavorites) {
+                    favorites = doc.data().myFavorites;
+                    // 更新本地存儲作為備份
+                    localStorage.setItem('favorites', JSON.stringify(favorites));
+                    document.getElementById('favoritesCount').textContent = favorites.length;
+                    renderFavorites();
+                    renderDeptList(currentYear);
+                }
+            } catch (error) {
+                console.error("載入雲端資料失敗", error);
             }
         }
 

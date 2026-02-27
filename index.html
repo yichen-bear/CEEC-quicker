@@ -374,7 +374,6 @@
                 <div class="score-row" id="scoreRow2"></div>
                 
                 <div class="btn-group">
-                    <button class="btn btn-primary" onclick="updateAllCalculations()">更新落點分析</button>
                     <button class="btn btn-secondary" onclick="resetScores()">清除所有成績</button>
                 </div>
             </div>
@@ -650,42 +649,77 @@
         }
 
         // 產生詳細 HTML
+        // 修改後的詳細計算邏輯
         function generateDetailHTML(dept, showMissingOnly = false) {
             const weights = parseWeightString(dept["採計及加權"]);
             let usedHTML = '';
-            let missingHTML = '';
             let myTotal = 0;
+            
+            // 用於計算分科目標的變數
+            let gsatedWeightedSum = 0; // 學測加權總分
+            let electiveWeightSum = 0; // 分科加權倍率總和
+            const gsateSubjects = ['國文', '英文', '數A', '數B', '社會', '自然'];
 
             for (const [subject, weight] of Object.entries(weights)) {
                 const normSubject = normalizeSubject(subject);
                 const score = userScores[normSubject] || 0;
                 const weighted = score * weight;
                 myTotal += weighted;
+
+                // 判斷是學測還是分科科目
+                const isGSAT = gsateSubjects.includes(normSubject);
+                if (isGSAT) {
+                    gsatedWeightedSum += weighted;
+                } else {
+                    electiveWeightSum += weight;
+                }
                 
                 const row = `
-                    <tr>
-                        <td>${subject}</td>
+                    <tr style="${isGSAT ? 'color: #718096;' : 'font-weight: bold; color: #1a4d8c;'}">
+                        <td>${subject}${isGSAT ? ' (學測)' : ' (分科)'}</td>
                         <td>${score}</td>
                         <td>x${weight}</td>
                         <td>${weighted.toFixed(1)}</td>
                     </tr>
                 `;
                 
-                if (showMissingOnly && score === 0 && !basicSubjects.includes(normSubject)) {
-                    missingHTML += row;
-                } else if (!showMissingOnly) {
+                if (!showMissingOnly) {
                     usedHTML += row;
                 }
             }
 
-            const gap = dept["普通生錄取分數"] - myTotal;
-
-            if (showMissingOnly) {
-                return missingHTML;
+            const targetTotal = dept["普通生錄取分數"];
+            const gap = targetTotal - myTotal;
+            
+            // 計算分科平均所需級分
+            let targetAnalysisHTML = '';
+            if (gap > 0) {
+                if (electiveWeightSum > 0) {
+                    const neededFromElective = targetTotal - gsatedWeightedSum;
+                    const avgNeeded = neededFromElective / electiveWeightSum;
+                    
+                    targetAnalysisHTML = `
+                        <div style="margin-top:15px; padding:12px; background:#fff5f5; border-left:4px solid #f56565; border-radius:4px;">
+                            <strong style="color:#c53030;">🎯 錄取目標分析：</strong><br>
+                            • 扣除學測加權後，分科需補足：<strong>${neededFromElective.toFixed(1)}</strong> 分<br>
+                            • 分科科目平均每級分需達：<span style="font-size:1.2rem; color:#e53e3e;">${avgNeeded.toFixed(2)}</span> 級分<br>
+                            (‼️以上計算僅供參考)
+                        </div>
+                    `;
+                } else {
+                    targetAnalysisHTML = `<div style="margin-top:10px; color:#e53e3e;">⚠ 此系組僅採計學測科目，目前總分不足。</div>`;
+                }
+            } else {
+                targetAnalysisHTML = `
+                    <div style="margin-top:15px; padding:12px; background:#f0fff4; border-left:4px solid #48bb78; border-radius:4px;">
+                        <strong style="color:#2f855a;">🎉 目前分數已達標！</strong><br>
+                        保持分科測驗水準即可錄取。
+                    </div>
+                `;
             }
 
             return `
-                <h4>📋 詳細計算</h4>
+                <h4>📋 詳細計算與目標分析</h4>
                 <table class="calc-table">
                     <tr>
                         <th>科目</th>
@@ -695,14 +729,15 @@
                     </tr>
                     ${usedHTML}
                     <tr style="font-weight:700; background:#e2e8f0;">
-                        <td colspan="3">總計</td>
+                        <td colspan="3">目前加權總分</td>
                         <td>${myTotal.toFixed(1)}</td>
                     </tr>
                 </table>
                 <p style="margin-top:10px;">
-                    📌 最低錄取分數：${dept["普通生錄取分數"]}<br>
-                    📌 ${gap > 0 ? `尚差 ${gap.toFixed(1)} 分` : `高出 ${Math.abs(gap).toFixed(1)} 分`}
+                    📌 最低錄取分數：${targetTotal}<br>
+                    📌 相差分數：${gap > 0 ? `尚差 ${gap.toFixed(1)} 分` : `高出 ${Math.abs(gap).toFixed(1)} 分`}
                 </p>
+                ${targetAnalysisHTML}
             `;
         }
 

@@ -398,15 +398,193 @@
             background: #feb2b2;
             color: white;
         }
+
+        /* 登入區塊基礎樣式 */
+        .auth-container {
+            display: flex;
+            justify-content: flex-end; /* 桌機版靠右 */
+            align-items: center;
+            padding: 10px 0;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .login-main-btn {
+            background: #1a4d8c; 
+            color: white; 
+            padding: 8px 20px; 
+            font-size: 1rem;
+        }
+
+        .user-info-box {
+            display: flex;
+            align-items: center; 
+            gap: 12px; 
+            background: white; 
+            padding: 5px 15px; 
+            border-radius: 30px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .user-avatar {
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            border: 2px solid #e2e8f0;
+        }
+
+        .user-name-text {
+            font-size: 0.95rem; 
+            font-weight: 600; 
+            color: #2c3e50;
+        }
+
+        .logout-link {
+            border: none; 
+            background: transparent; 
+            color: #718096; 
+            text-decoration: underline; 
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* 手機版專用調整 (螢幕寬度小於 600px) */
+        @media (max-width: 600px) {
+            .auth-container {
+                position: static;        /* 確保不會浮動遮擋 */
+                margin-top: 10px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;      /* 縮小標題字體避免換行過多 */
+                border-left: none;
+                padding-left: 0;
+            }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center; justify-content: center;
+        }
+
+        /* 視窗內容 */
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 380px;
+            position: relative;
+            text-align: center;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .google-login-btn {
+            margin-top: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .google-login-btn:hover { transform: scale(1.1); }
+
+        .toggle-auth {
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: #1a4d8c;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .nav-auth-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* 標籤群組 */
+        .nav-tabs {
+            display: flex;
+            gap: 5px;
+            flex-shrink: 0; /* 防止被擠壓 */
+        }
+
+        /* 統一按鈕樣式 (縮小版以利手機顯示) */
+        .nav-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: #f1f5f9;
+            color: #4a5568;
+            white-space: nowrap; /* 文字不換行 */
+            transition: all 0.2s;
+        }
+
+        .nav-btn.active {
+            background: #1a4d8c;
+            color: white;
+        }
+
+        .login-border {
+            background: transparent;
+            border: 1.5px solid #1a4d8c;
+            color: #1a4d8c;
+        }
+
+        .logout-link {
+            background: none;
+            border: none;
+            color: #718096;
+            text-decoration: underline;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* 針對極小螢幕縮減文字 */
+        @media (max-width: 380px) {
+            .nav-btn {
+                padding: 6px 8px;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 分科測驗志願落點分析</h1>
 
-        <div class="btn-group" style="margin-bottom: 20px;">
-            <button id="tab-analysis" class="year-btn active" onclick="showPage('analysis')">🎁 落點分析</button>
-            <button id="tab-favorites" class="year-btn" onclick="showPage('favorites')">⭐ 查看清單</button>
+        <div class="nav-auth-row">
+            <div class="nav-tabs">
+                <button id="tab-analysis" class="nav-btn active" onclick="showPage('analysis')">🎁 落點分析</button>
+                <button id="tab-favorites" class="nav-btn" onclick="showPage('favorites')">⭐ 我的清單</button>
+            </div>
+
+            <div id="auth-section">
+                <button id="login-btn" class="nav-btn login-border" onclick="openAuthModal()">登入</button>
+                <div id="user-info" style="display: none; align-items: center; gap: 5px;">
+                    <img id="user-photo" src="" style="width: 24px; height: 24px; border-radius: 50%;">
+                    <button onclick="handleLogout()" class="logout-link">登出</button>
+                </div>
+            </div>
         </div>
 
         <div id="page-analysis">
@@ -478,7 +656,86 @@
         </div>
     </div>
 
+    <div id="authModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title" style="margin-bottom: 20px; color: #1a4d8c;">會員登入</h2>
+            
+            <div id="auth-fields">
+                <input type="email" id="auth-email" class="auth-input" placeholder="電子郵件">
+                <input type="password" id="auth-pw" class="auth-input" placeholder="密碼">
+                <button class="nav-btn" style="width:100%; margin-top:15px; background:#1a4d8c; color:white; padding:12px;" onclick="handleEmailAuth()">確定</button>
+            </div>
+            
+            <div style="margin: 25px 0 15px; border-top: 1px solid #eee; position: relative;">
+                <span style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px; color: #94a3b8; font-size: 0.8rem;">或使用 Google 登入</span>
+            </div>
+
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <div class="google-login-btn" onclick="handleLogin()" style="cursor: pointer; padding: 10px; border: 1px solid #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: white; transition: all 0.3s; width: 50px; height: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+                        alt="Google Login" 
+                        width="30" 
+                        height="30">
+                </div>
+            </div>
+
+            <div class="toggle-auth" id="toggle-text" onclick="toggleAuthMode()" style="font-size: 0.9rem; color: #475569; cursor: pointer; text-decoration: underline;">沒有帳號？立即註冊</div>
+            
+            <button onclick="closeAuthModal()" style="position:absolute; top:15px; right:15px; border:none; background:none; font-size:1.5rem; color: #94a3b8; cursor:pointer;">&times;</button>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script>
+        // Firebase 配置 (保留你原本的)
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5MDf5qr3bPc7rbZ54Osl84jBIkWr4Z0U",
+            authDomain: "ceec-quickcal.firebaseapp.com",
+            projectId: "ceec-quickcal",
+            storageBucket: "ceec-quickcal.firebasestorage.app",
+            messagingSenderId: "344318084972",
+            appId: "1:344318084972:web:5f79504225a4a8e3a29549",
+            measurementId: "G-3YR9MHMRDZ"
+        };
+
+        // 初始化 Firebase (Compat 版本寫法，適合直接寫在 HTML)
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+
+        // 監聽登入狀態
+        auth.onAuthStateChanged((user) => {
+            const loginBtn = document.getElementById('login-btn');
+            const userInfo = document.getElementById('user-info');
+            
+            if (user) {
+                loginBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                document.getElementById('user-name').textContent = user.displayName || user.email.split('@')[0];
+                document.getElementById('user-photo').src = user.photoURL || 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y';
+            } else {
+                loginBtn.style.display = 'block';
+                userInfo.style.display = 'none';
+            }
+        });
+
+        // 登入函式 (現在可以正確被 onclick 呼叫)
+        async function handleLogin() {
+            try {
+                await auth.signInWithPopup(provider);
+                closeAuthModal();
+            } catch (error) {
+                console.error("登入失敗", error);
+                alert("登入失敗：" + error.message);
+            }
+        }
+
+        function handleLogout() {
+            auth.signOut();
+        }
+
+
         // 全域變數
         let allData = {};
         let currentYear = '114';
@@ -903,6 +1160,12 @@
             
             renderDeptList(currentYear);
             renderFavorites();
+
+            const user = auth.currentUser;
+            if (user) {
+                // 使用 setDoc 或 updateDoc 將 favorites 陣列存入 Firestore 的 users/UID 文件中
+                console.log("正在同步資料到雲端...");
+            }
         }
 
         function removeFromFavorites(deptId) {
@@ -971,8 +1234,8 @@
                     <div class="favorite-group" style="margin-bottom: 15px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
                         <div class="group-header" style="padding: 12px 20px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; border-bottom: ${isGroupExpanded ? '1px solid #e2e8f0' : 'none'};">
                             <div onclick="toggleFavDetail('${group.key}')" style="cursor: pointer; flex: 1;">
-                                <strong style="font-size: 1.1rem; color: #1a4d8c;">${group.school}</strong>
-                                <span style="margin-left: 10px; color: #4a5568;">${group.name}</span>
+                                <strong style="font-size: 1.1rem; color: #1a4d8c;">${group.school}</strong><br>
+                                <span style="margin-left: 0px; color: #4a5568;">${group.name}</span>
                             </div>
                             
                             <div style="display: flex; gap: 6px; align-items: center;">
@@ -1136,6 +1399,42 @@
             favorites = newFavorites;
             localStorage.setItem('favorites', JSON.stringify(favorites));
             renderFavorites();
+        }
+
+        let isSignUpMode = false;
+
+        function openAuthModal() {
+            document.getElementById('authModal').style.display = 'flex';
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').style.display = 'none';
+        }
+
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            document.getElementById('modal-title').textContent = isSignUpMode ? '會員註冊' : '會員登入';
+            document.getElementById('toggle-text').textContent = isSignUpMode ? '已有帳號？返回登入' : '沒有帳號？立即註冊';
+        }
+
+        // 處理 Email 登入/註冊
+        async function handleEmailAuth() {
+            const email = document.getElementById('auth-email').value;
+            const pw = document.getElementById('auth-pw').value;
+            
+            if(!email || !pw) return alert("請輸入完整資料");
+
+            try {
+                if (isSignUpMode) {
+                    await auth.createUserWithEmailAndPassword(email, pw);
+                    alert("註冊成功！");
+                } else {
+                    await auth.signInWithEmailAndPassword(email, pw);
+                }
+                closeAuthModal();
+            } catch (error) {
+                alert("操作失敗：" + error.message);
+            }
         }
 
         // 啟動

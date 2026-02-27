@@ -563,6 +563,147 @@
                 font-size: 0.8rem;
             }
         }
+
+        /* 懸浮按鈕容器 */
+        .floating-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 3000;
+        }
+
+        /* 懸浮按鈕基礎樣式 */
+        .fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: #1a4d8c;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            background: #0d3a6f;
+        }
+
+        .fab-secondary {
+            width: 48px;
+            height: 48px;
+            background: white;
+            color: #1a4d8c;
+            font-size: 1rem;
+        }
+
+        /* 手機版適度縮小 */
+        @media (max-width: 600px) {
+            .floating-actions {
+                bottom: 20px;
+                right: 15px;
+            }
+            .fab {
+                width: 50px;
+                height: 50px;
+            }
+        }
+
+        /* 1. 懸浮容器 */
+        .fab-wrapper {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 2. 預設隱藏的小按鈕群 */
+        .fab-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        /* 當容器被激活時顯示小按鈕 */
+        .fab-wrapper.active .fab-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        /* 3. 基礎按鈕樣式 */
+        .fab-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+
+        /* 主按鈕：控制開關 */
+        .fab-main {
+            background: #1a4d8c;
+            color: white;
+            width: 56px;
+            height: 56px;
+            font-size: 1.5rem;
+        }
+
+        /* 子按鈕：功能項 */
+        .fab-sub {
+            background: white;
+            color: #1a4d8c;
+            font-size: 1rem;
+            position: relative;
+        }
+
+        /* 子按鈕文字標籤 (選配) */
+        .fab-sub::after {
+            content: attr(data-label);
+            position: absolute;
+            right: 65px;
+            background: #2d3748;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .fab-sub:hover::after {
+            opacity: 1;
+        }
+
+        /* 旋轉動畫 */
+        .fab-wrapper.active .fab-main {
+            transform: rotate(45deg);
+            background: #e53e3e; /* 展開時變紅色提示關閉 */
+        }
     </style>
 </head>
 <body>
@@ -687,6 +828,23 @@
             
             <button onclick="closeAuthModal()" style="position:absolute; top:15px; right:15px; border:none; background:none; font-size:1.5rem; color: #94a3b8; cursor:pointer;">&times;</button>
         </div>
+    </div>
+    <div class="fab-wrapper" id="fabWrapper">
+        <div class="fab-menu">
+            <button class="fab-btn fab-sub" data-label="回到頂部" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                🔼
+            </button>
+            <button class="fab-btn fab-sub" data-label="落點分析" onclick="showPage('analysis')">
+                🎁
+            </button>
+            <button class="fab-btn fab-sub" data-label="我的清單" onclick="showPage('favorites')">
+                ⭐
+            </button>
+        </div>
+        
+        <button class="fab-btn fab-main" onclick="toggleFab()">
+            +
+        </button>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1656,6 +1814,38 @@
             renderFavorites(); // 重新渲染清單
             syncFavoritesToCloud(); // 同步到 Firebase
         }
+
+        window.onscroll = function() {
+            const topBtn = document.querySelector('.fab-secondary');
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                topBtn.style.display = "flex";
+            } else {
+                topBtn.style.display = "none";
+            }
+        };
+
+        /**
+         * 切換懸浮選單的開關
+         */
+        function toggleFab() {
+            const wrapper = document.getElementById('fabWrapper');
+            wrapper.classList.toggle('active');
+        }
+
+        // 點擊頁面其他地方時自動收合 (選配)
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('fabWrapper');
+            if (!wrapper.contains(e.target) && wrapper.classList.contains('active')) {
+                wrapper.classList.remove('active');
+            }
+        });
+
+        // 當使用者切換頁面時，自動收合選單
+        const originalShowPage = showPage;
+        showPage = function(pageName) {
+            originalShowPage(pageName); // 執行原本的 showPage
+            document.getElementById('fabWrapper').classList.remove('active'); // 收合選單
+        };
 
         // 啟動
         init();

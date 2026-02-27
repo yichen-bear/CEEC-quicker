@@ -644,8 +644,11 @@
         <div id="page-favorites" style="display: none;">
             <div class="favorites-panel">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                    <h2>⭐ 我的追蹤清單 (共 <span id="favoritesCount">0</span> 個)</h2>
-                    
+                    <h2>⭐ 我的追蹤清單 (共 <span id="favoritesCount">0</span> 個校系)</h2>
+                    <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                        <button class="nav-btn" onclick="toggleAllFav(true)" style="background: #e2e8f0; color: #2c3e50;">全部展開</button>
+                        <button class="nav-btn" onclick="toggleAllFav(false)" style="background: #e2e8f0; color: #2c3e50;">全部收合</button>
+                    </div>
                     <div class="search-box" style="max-width: 300px; flex: 1;">
                         <input type="text" id="favSearchInput" placeholder="🔍 在收藏中搜尋..." oninput="renderFavorites()" autocomplete="off">
                     </div>
@@ -1222,12 +1225,13 @@
 
             // 4. 更新 LocalStorage 與 UI
             localStorage.setItem('favorites', JSON.stringify(favorites));
-            document.getElementById('favoritesCount').textContent = favorites.length;
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+    
+            // 修改這裡：從 favorites.length 改成呼叫新函式
+            updateFavoritesCountUI(); 
             
             renderDeptList(currentYear);
             renderFavorites();
-
-            // 5. 同步到雲端
             syncFavoritesToCloud();
         }
 
@@ -1339,6 +1343,33 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        /**
+         * 批次控制收藏清單的展開或收合
+         * @param {boolean} isOpen - true 為全展開，false 為全收合
+         */
+        function toggleAllFav(isOpen) {
+            if (isOpen) {
+                // 全展開：將目前所有顯示中的校系 Group Key 加入 Set
+                // 為了只展開到年度層級，我們只需操作校系的 Group Key
+                const favSearchText = document.getElementById('favSearchInput') ? document.getElementById('favSearchInput').value.toLowerCase() : '';
+                
+                favorites.forEach(dept => {
+                    const groupKey = `${dept["校名"]}-${dept["系組名"]}`;
+                    const fullName = `${dept["校名"]} ${dept["系組名"]}`.toLowerCase();
+                    
+                    // 僅針對目前搜尋結果中看得到的校系進行展開
+                    if (fullName.includes(favSearchText)) {
+                        favExpandedRows.add(groupKey);
+                    }
+                });
+            } else {
+                // 全部收合：直接清空 Set
+                favExpandedRows.clear();
+            }
+            
+            renderFavorites();
         }
 
         // 新增：切換收藏清單展開狀態的函式
@@ -1585,6 +1616,20 @@
                 }
             } catch (error) {
                 console.error("載入預設成績失敗", error);
+            }
+        }
+
+        // 新增一個統一計算校系數量的函式
+        function updateFavoritesCountUI() {
+            // 使用 Set 來儲存「校名+系組名」的唯一組合
+            const uniqueDepts = new Set(
+                favorites.map(f => `${f["校名"]}-${f["系組名"]}`)
+            );
+            
+            const count = uniqueDepts.size;
+            const countEl = document.getElementById('favoritesCount');
+            if (countEl) {
+                countEl.textContent = count;
             }
         }
 

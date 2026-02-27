@@ -237,7 +237,7 @@
             color: white;
             border: none;
             border-radius: 6px;
-            padding: 5px 12px;
+            padding: 5px 7px;
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
@@ -297,7 +297,8 @@
             border-radius: 6px;
             padding: 5px 10px;
             cursor: pointer;
-            height: 35px;
+            min-height: 35px;
+            max-height: 51px;
         }
 
         .remove-btn:hover {
@@ -350,63 +351,78 @@
     <div class="container">
         <h1>📊 分科測驗志願落點分析</h1>
 
-        <!-- 成績輸入區 -->
-        <div class="score-panel">
-            <h2>📝 輸入你的成績</h2>
-            <div class="filter-stats">
-                <strong>ℹ️ 使用說明：</strong><br>
-                • 已有成績 → 填入實際分數<br>
-                • 打算要考的科目 → 填入 0（表示之後會考）<br>
-                • 不打算考的科目 → 留空白（該科系會被篩選掉）
+        <div class="btn-group" style="margin-bottom: 20px;">
+            <button id="tab-analysis" class="year-btn active" onclick="showPage('analysis')">🎁 落點分析</button>
+            <button id="tab-favorites" class="year-btn" onclick="showPage('favorites')">⭐ 查看清單</button>
+        </div>
+
+        <div id="page-analysis">
+             <!-- 成績輸入區 -->
+            <div class="score-panel">
+                <h2>📝 輸入你的成績</h2>
+                <div class="filter-stats">
+                    <strong>ℹ️ 使用說明：</strong><br>
+                    • 已有成績 → 填入實際分數<br>
+                    • 打算要考的科目 → 填入 0（表示之後會考）<br>
+                    • 不打算考的科目 → 留空白（該科系會被篩選掉）
+                </div>
+                
+                <!-- 第一行：國文 英文 數A 數B 社會 自然 -->
+                <div class="score-row" id="scoreRow1"></div>
+                
+                <!-- 第二行：數甲 數乙 地理 歷史 公民 物理 化學 生物 -->
+                <div class="score-row" id="scoreRow2"></div>
+                
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="updateAllCalculations()">更新落點分析</button>
+                    <button class="btn btn-secondary" onclick="resetScores()">清除所有成績</button>
+                </div>
             </div>
-            
-            <!-- 第一行：國文 英文 數A 數B 社會 自然 -->
-            <div class="score-row" id="scoreRow1"></div>
-            
-            <!-- 第二行：數甲 數乙 地理 歷史 公民 物理 化學 生物 -->
-            <div class="score-row" id="scoreRow2"></div>
-            
-            <div class="btn-group">
-                <button class="btn btn-primary" onclick="updateAllCalculations()">更新落點分析</button>
-                <button class="btn btn-secondary" onclick="resetScores()">清除所有成績</button>
+
+            <!-- 主要瀏覽區 -->
+            <div class="control-bar">
+                <div class="year-selector" id="yearSelector"></div>
+
+                <div class="year-selector">
+                    <button id="type-all" class="year-btn active" onclick="filterByType('all')">全部學校</button>
+                    <button id="type-public" class="year-btn" onclick="filterByType('public')">公立大學</button>
+                    <button id="type-private" class="year-btn" onclick="filterByType('private')">私立大學</button>
+                </div>
+                
+                <button id="passFilterBtn" class="year-btn" onclick="togglePassFilter()">
+                    顯示全部
+                </button>
+
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 搜尋學校或科系名稱..." oninput="filterDepartments()">
+                </div>
+            </div>
+
+            <!-- 科系列表 -->
+            <div class="dept-list" id="deptList">
+                <div class="list-header">
+                    <div>校系名稱</div>
+                    <div>採計科目</div>
+                    <div>最低錄取</div>
+                    <div>預估差距</div>
+                    <div>操作</div>
+                </div>
+                <div id="deptRows"></div>
             </div>
         </div>
 
-        <!-- 主要瀏覽區 -->
-        <div class="control-bar">
-            <div class="year-selector" id="yearSelector"></div>
-
-            <div class="year-selector">
-                <button id="type-all" class="year-btn active" onclick="filterByType('all')">全部學校</button>
-                <button id="type-public" class="year-btn" onclick="filterByType('public')">公立大學</button>
-                <button id="type-private" class="year-btn" onclick="filterByType('private')">私立大學</button>
+        <div id="page-favorites" style="display: none;">
+            <div class="favorites-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <h2>⭐ 我的追蹤清單 (共 <span id="favoritesCount">0</span> 個)</h2>
+                    
+                    <div class="search-box" style="max-width: 300px; flex: 1;">
+                        <input type="text" id="favSearchInput" placeholder="🔍 在收藏中搜尋..." oninput="renderFavorites()">
+                    </div>
+                </div>
+                
+                <div id="favoritesList" class="favorites-list"></div>
             </div>
-            
-            <button id="passFilterBtn" class="year-btn" onclick="togglePassFilter()">
-                顯示全部
-            </button>
-
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 搜尋學校或科系名稱..." oninput="filterDepartments()">
-            </div>
-        </div>
-
-        <!-- 科系列表 -->
-        <div class="dept-list" id="deptList">
-            <div class="list-header">
-                <div>校系名稱</div>
-                <div>採計科目</div>
-                <div>最低錄取</div>
-                <div>預估差距</div>
-                <div>操作</div>
-            </div>
-            <div id="deptRows"></div>
-        </div>
-
-        <!-- 我的清單 -->
-        <div class="favorites-panel">
-            <h2>⭐ 我的追蹤清單 (共 <span id="favoritesCount">0</span> 個科系)</h2>
-            <div id="favoritesList" class="favorites-list"></div>
         </div>
     </div>
 
@@ -824,12 +840,29 @@
         function renderFavorites() {
             const container = document.getElementById('favoritesList');
             
+            // 1. 取得收藏頁面搜尋框的文字
+            const favSearchText = document.getElementById('favSearchInput') ? document.getElementById('favSearchInput').value.toLowerCase() : '';
+            
+            // 2. 先過濾出符合搜尋條件的項目
+            const filteredFavs = favorites.filter(dept => {
+                const fullName = `${dept["校名"]} ${dept["系組名"]}`.toLowerCase();
+                return fullName.includes(favSearchText);
+            });
+
+            // 如果完全沒收藏
             if (favorites.length === 0) {
                 container.innerHTML = '<div style="color:#666; text-align:center; padding:20px;">📌 尚無追蹤科系</div>';
                 return;
             }
 
-            container.innerHTML = favorites.map((dept, index) => {
+            // 如果搜尋後沒結果
+            if (filteredFavs.length === 0) {
+                container.innerHTML = `<div style="color:#666; text-align:center; padding:20px;">🔍 找不到相符的 "${favSearchText}"</div>`;
+                return;
+            }
+
+            // 3. 使用過濾後的 filteredFavs 進行渲染 (原本是用 favorites.map)
+            container.innerHTML = filteredFavs.map((dept, index) => {
                 const gap = calculateGap(dept);
                 const gapClass = gap <= 0 ? 'gap-negative' : 'gap-positive';
                 const gapText = gap <= 0 ? `✅ 高出 ${Math.abs(gap).toFixed(1)} 分` : `尚差 ${gap.toFixed(1)} 分`;
@@ -845,16 +878,9 @@
                         <div>${dept["普通生錄取分數"]}</div>
                         <div class="gap-value ${gapClass}">${gapText}</div>
                         <div onclick="event.stopPropagation()" style="display: flex; gap: 5px; align-items: center;">
-                            <button class="btn-secondary" style="padding: 2px 8px; height: 30px;" onclick="moveFavorite(${index}, -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
-                            <button class="btn-secondary" style="padding: 2px 8px; height: 30px;" onclick="moveFavorite(${index}, 1)" ${index === favorites.length - 1 ? 'disabled' : ''}>▼</button>
                             <button class="remove-btn" onclick="removeFromFavorites('${dept.id}')">移除</button>
                         </div>
-                        
-                        ${isExpanded ? `
-                            <div class="favorite-detail" onclick="event.stopPropagation()">
-                                ${generateDetailHTML(dept)}
-                            </div>
-                        ` : ''}
+                        ${isExpanded ? `<div class="favorite-detail" onclick="event.stopPropagation()">${generateDetailHTML(dept)}</div>` : ''}
                     </div>
                 `;
             }).join('');
@@ -923,6 +949,31 @@
             return schoolName.startsWith('國立') || 
                 schoolName.includes('市立') || 
                 schoolName.includes('縣立');
+        }
+
+        function showPage(pageName) {
+            const analysisPage = document.getElementById('page-analysis');
+            const favoritesPage = document.getElementById('page-favorites');
+            const tabAnalysis = document.getElementById('tab-analysis');
+            const tabFavorites = document.getElementById('tab-favorites');
+
+            if (pageName === 'analysis') {
+                // 顯示分析，隱藏清單
+                analysisPage.style.display = 'block';
+                favoritesPage.style.display = 'none';
+                // 切換按鈕顏色
+                tabAnalysis.classList.add('active');
+                tabFavorites.classList.remove('active');
+            } else {
+                // 隱藏分析，顯示清單
+                analysisPage.style.display = 'none';
+                favoritesPage.style.display = 'block';
+                // 切換按鈕顏色
+                tabAnalysis.classList.remove('active');
+                tabFavorites.classList.add('active');
+                // 切換到清單頁時，強制重新刷新清單內容
+                renderFavorites();
+            }
         }
 
         // 啟動

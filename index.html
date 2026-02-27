@@ -395,8 +395,9 @@
         }
 
         .remove-btn-soft:hover {
-            background: #feb2b2;
-            color: white;
+            background: #e53e3e !important;
+            color: white !important;
+            border-color: #c53030 !important;
         }
 
         /* 登入區塊基礎樣式 */
@@ -1309,7 +1310,11 @@
                             <div style="display: flex; gap: 6px; align-items: center;">
                                 <button class="move-btn-soft" onclick="moveFavoriteGroup(${gIndex}, -1)" ${gIndex === 0 ? 'disabled' : ''}>▲</button>
                                 <button class="move-btn-soft" onclick="moveFavoriteGroup(${gIndex}, 1)" ${gIndex === filteredGroups.length - 1 ? 'disabled' : ''}>▼</button>
-                                
+                                <button class="remove-btn-soft" 
+                                        style="background: #fff5f5; color: #e53e3e; border: 1px solid #feb2b2; padding: 4px 10px; font-weight: bold;" 
+                                        onclick="removeEntireGroup('${group.school}', '${group.name}')">
+                                    刪除
+                                </button>
                                 <button class="tab-btn-soft" onclick="toggleFavDetail('${group.key}')">
                                     ${isGroupExpanded ? '收合' : '展開'}
                                 </button>
@@ -1631,6 +1636,25 @@
             if (countEl) {
                 countEl.textContent = count;
             }
+        }
+
+        /**
+         * 批次移除整個校系（包含所有年份）
+         */
+        function removeEntireGroup(schoolName, deptName) {
+            if (!confirm(`確定要將「${schoolName} ${deptName}」的所有年度資料從清單移除嗎？`)) {
+                return;
+            }
+
+            // 過濾掉校名與系名完全符合的項目
+            favorites = favorites.filter(f => !(f["校名"] === schoolName && f["系組名"] === deptName));
+
+            // 更新 LocalStorage、UI 與雲端同步
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            updateFavoritesCountUI(); // 更新顯示的總校系數
+            renderDeptList(currentYear); // 更新落點分析頁面的按鈕狀態
+            renderFavorites(); // 重新渲染清單
+            syncFavoritesToCloud(); // 同步到 Firebase
         }
 
         // 啟動
